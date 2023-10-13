@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Import the dart:convert library for JSON decoding.
-
+import 'package:graphql/client.dart';
 
 void main() {
   runApp(const MyApp());
@@ -67,16 +67,25 @@ class _LoginState extends State<Login> {
     final email = emailController.text;
     final password = passwordController.text;
 
-    final url = Uri.parse('your_api_login_endpoint_here');
+    final _httpLink = HttpLink('https://api.github.com/graphql',);
 
-    try {
-      final response = await http.post(
-        url,
-        body: {
-          'email': email,
-          'password': password,
-        },
-      );
+    final _authLink = AuthLink(
+  getToken: () async => 'Bearer xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+);
+
+Link _link = _authLink.concat(_httpLink);
+
+/// subscriptions must be split otherwise `HttpLink` will. swallow them
+if (websocketEndpoint != null){
+  final _wsLink = WebSocketLink(websockeEndpoint);
+  _link = Link.split((request) => request.isSubscription, _wsLink, _link);
+}
+
+final GraphQLClient client = GraphQLClient(
+  /// **NOTE** The default store is the InMemoryStore, which does NOT persist to disk
+  cache: GraphQLCache(),
+  link: _link,
+);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
